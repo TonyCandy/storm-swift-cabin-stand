@@ -189,11 +189,18 @@
   /* ---------- 数据加载 ---------- */
 
   function decodeText(buf) {
+    // 兼容两种 UTF-8 文件：带 BOM（UTF-8 with BOM，WPS/Excel 另存常见）与纯 UTF-8（无 BOM）
+    // 检测到 EF BB BF 开头时跳过 BOM 字节，避免 \uFEFF 混入表头/首行
+    const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+    let start = 0;
+    if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+      start = 3;
+    }
     // 优先按 UTF-8 严格解码；失败时回退 GBK（Excel 另存的常见编码）
     try {
-      return new TextDecoder("utf-8", { fatal: true }).decode(buf);
+      return new TextDecoder("utf-8", { fatal: true }).decode(bytes.subarray(start));
     } catch {
-      return new TextDecoder("gbk").decode(buf);
+      return new TextDecoder("gbk").decode(bytes.subarray(start));
     }
   }
 
